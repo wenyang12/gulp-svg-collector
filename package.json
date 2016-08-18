@@ -1,0 +1,34 @@
+{
+  "name": "@tools/gulp-svg-adapter",
+  "version": "1.0.0",
+  "description": "搜寻页面中通过img加载的svg图片，适配为svg symbol加载方式和老IE fallback",
+  "contributors": [
+    "Luoying <luoying@fxiaoke.com>"
+  ],
+  "homepage": "http://registry-npm.firstshare.cn/",
+  "main": "index.js",
+  "scripts": {
+    "eslint": "eslint index.js"
+  },
+  "pre-commit": [
+    "eslint"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "http://git.firstshare.cn/fe-tools/gulp-svg-adapter.git"
+  },
+  "keywords": [
+    "svg",
+    "symbols",
+    "gulp"
+  ],
+  "author": "luoying",
+  "license": "ISC",
+  "dependencies": {
+    "gulp-util": "^3.0.7",
+    "through2": "^2.0.1"
+  },
+  "devDependencies": {
+    "pre-commit": "^1.1.3"
+  }
+}
