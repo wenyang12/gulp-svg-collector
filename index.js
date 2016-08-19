@@ -62,7 +62,7 @@ const replace = (html, options) => {
   return html;
 };
 
-module.exports.collector = () => {
+module.exports.collect = () => {
   return through2.obj(function(file, enc, cb) {
     if (file.isNull()) {
       return cb(null, file);
@@ -85,11 +85,7 @@ module.exports.collector = () => {
   });
 };
 
-module.exports.replace = (options) => {
-  options = Object.assign({
-    path: '/svgs'
-  }, options || {});
-
+module.exports.replace = (dest) => {
   return through2.obj((file, enc, cb) => {
     if (file.isNull()) {
       return cb(null, file);
@@ -100,7 +96,7 @@ module.exports.replace = (options) => {
     let html = file.contents.toString();
 
     html = replace(html, {
-      svgPath: `${options.path}/${page}.svg`,
+      svgPath: `${dest}/${page}.svg`,
       base: base
     });
 

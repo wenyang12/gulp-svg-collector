@@ -1,6 +1,6 @@
 {
   "name": "@tools/gulp-svg-adapter",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "搜寻页面中通过img加载的svg图片，适配为svg symbol加载方式和老IE fallback",
   "contributors": [
     "Luoying <luoying@fxiaoke.com>"
