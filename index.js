@@ -17,20 +17,12 @@ const path = require('path');
 const through2 = require('through2');
 const gutil = require('gulp-util');
 const File = gutil.File;
+const getMatchs = require('@tools/matchs');
 
 // 搜索img加载的svg图片
 const REG_SVG = /<img.*\s+src=["|'](.+\.svg)["|'][^>]*>/gi;
 // 匹配className属性
 const REG_CLASSNAME = /class=["|']([^"']+)["|']/i;
-
-const getMatchs = (data, reg) => {
-  let matchs = [];
-  let match = null;
-  while ((match = reg.exec(data))) {
-    matchs.push(match);
-  }
-  return matchs;
-};
 
 const collect = (html) => {
   let matchs = getMatchs(html, REG_SVG);
@@ -39,9 +31,10 @@ const collect = (html) => {
   });
 };
 
-const getSVG = (svg, attrs) => (
+const getSVGXML = (svg, fallback, attrs) => (
   `<svg role="img" class="${attrs.className} ${attrs.id}">
-  <use xlink:href="${svg}#${attrs.id}" />
+  <defs><!--[if lte IE 8]><img class="${attrs.className} ${attrs.id}" src="${fallback}" _nowebp><![endif]--></defs>
+  <use xlink:href="${svg}#${attrs.id}"></use>
 </svg>`);
 
 const replace = (html, options) => {
@@ -50,12 +43,13 @@ const replace = (html, options) => {
     let img = match[0];
     let svg = match[1];
 
-    let id = path.basename(svg, '.svg');
+    let id = options.id || path.basename(svg, '.svg');
+    let fallback = svg.replace('.svg', options.fallbackExt);
     let classNameMatch = img.match(REG_CLASSNAME);
     let className = classNameMatch ? classNameMatch[1] : '';
 
-    html = html.replace(img, getSVG(options.svgPath, {
-      id: id,
+    html = html.replace(img, getSVGXML(options.svg, fallback, {
+      id: typeof id === 'function' ? id(path.dirname(svg), path.basename(svg, '.svg')) : id,
       className: className
     }));
   });
@@ -68,15 +62,13 @@ module.exports.collect = () => {
       return cb(null, file);
     }
 
-    let pathname = file.path;
-    let base = path.dirname(pathname);
+    let dirname = path.dirname(file.path);
+
     let files = collect(file.contents.toString()).map(svg => {
-      let contents = fs.readFileSync(base + svg);
+      let pathname = dirname + svg;
       return new File({
-        cwd: './',
-        base: './',
-        path: path.basename(svg),
-        contents: contents
+        path: pathname,
+        contents: fs.readFileSync(pathname)
       });
     });
 
@@ -85,20 +77,19 @@ module.exports.collect = () => {
   });
 };
 
-module.exports.replace = (dest) => {
+module.exports.replace = (dest, options) => {
   return through2.obj((file, enc, cb) => {
     if (file.isNull()) {
       return cb(null, file);
     }
 
-    let base = path.dirname(file.path);
     let page = path.basename(file.path, '.html');
     let html = file.contents.toString();
 
-    html = replace(html, {
-      svgPath: `${dest}/${page}.svg`,
-      base: base
-    });
+    html = replace(html, Object.assign({
+      svg: `${dest}/${page}.svg`,
+      fallbackExt: '.png'
+    }, options || {}));
 
     file.contents = new Buffer(html);
     cb(null, file);
