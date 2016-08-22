@@ -26,9 +26,7 @@ const REG_CLASSNAME = /class=["|']([^"']+)["|']/i;
 
 const collect = (html) => {
   let matchs = getMatchs(html, REG_SVG);
-  return matchs.map(match => {
-    return match[1];
-  });
+  return matchs.map(match => match[1]);
 };
 
 const getSVGXML = (svg, fallback, attrs) => (
@@ -43,13 +41,14 @@ const replace = (html, options) => {
     let img = match[0];
     let svg = match[1];
 
-    let id = options.id || path.basename(svg, '.svg');
+    let basename = path.basename(svg, '.svg');
+    let id = options.id || basename;
     let fallback = svg.replace('.svg', options.fallbackExt);
     let classNameMatch = img.match(REG_CLASSNAME);
     let className = classNameMatch ? classNameMatch[1] : '';
 
     html = html.replace(img, getSVGXML(options.svg, fallback, {
-      id: typeof id === 'function' ? id(path.dirname(svg), path.basename(svg, '.svg')) : id,
+      id: typeof id === 'function' ? id(path.dirname(svg), basename) : id,
       className: className
     }));
   });
@@ -58,38 +57,42 @@ const replace = (html, options) => {
 
 module.exports.collect = () => {
   return through2.obj(function(file, enc, cb) {
-    if (file.isNull()) {
-      return cb(null, file);
-    }
+    if (file.isNull()) return cb(null, file);
 
     let dirname = path.dirname(file.path);
+    let svgs = collect(file.contents.toString());
 
-    let files = collect(file.contents.toString()).map(svg => {
+    for (let svg of svgs) {
       let pathname = dirname + svg;
-      return new File({
+      let file = new File({
         path: pathname,
         contents: fs.readFileSync(pathname)
       });
-    });
+      this.push(file);
+    }
 
-    files.forEach(file => this.push(file));
-    cb(null);
+    cb();
   });
 };
 
-module.exports.replace = (dest, options) => {
+module.exports.replace = (options) => {
+  options = Object.assign({
+    dirname: './',
+    id: null,
+    fallbackExt: '.png'
+  }, options || {});
+
   return through2.obj((file, enc, cb) => {
-    if (file.isNull()) {
-      return cb(null, file);
-    }
+    if (file.isNull()) return cb(null, file);
 
     let page = path.basename(file.path, '.html');
     let html = file.contents.toString();
 
-    html = replace(html, Object.assign({
-      svg: `${dest}/${page}.svg`,
-      fallbackExt: '.png'
-    }, options || {}));
+    html = replace(html, {
+      svg: path.join(options.dirname, `${page}.svg`),
+      id: options.id,
+      fallbackExt: options.fallbackExt
+    });
 
     file.contents = new Buffer(html);
     cb(null, file);
