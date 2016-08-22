@@ -1,4 +1,4 @@
-# gulp-svg-adapter
+# gulp-svg-collector
 
 > 搜寻页面中通过img加载的svg图片，适配为svg symbol加载方式和老IE fallback
 
