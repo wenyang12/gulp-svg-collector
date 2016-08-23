@@ -1,18 +1,18 @@
 # gulp-svg-collector
 
-> 搜寻页面中通过img加载的svg图片，适配为svg symbol加载方式和老IE fallback
+> 收集页面中的svg图片，替换为svg sprite，并兼容老IE fallback
 
 
-适配前：
+替换前：
 ```html
-<img class="icon" src="/assets/images/icon-test.svg">
+<!--# include file="./images/test.svg" -->
 ```
 
-适配后：
+替换后：
 ```html
-<svg role="img" class="icon icon-test">
-  <defs><img class="icon" src="/assets/images/icon-test.png"></defs>
-  <use xlink:href="/assets/svgs/xxx.svg#icon-test"></use>
+<svg role="img" class="icon-test">
+  <defs><!--[if lte IE 8]><img src="/assets/images/test.png"><![endif]--></defs>
+  <use xlink:href="#icon-test"></use>
 </svg>
 ```
 

@@ -1,11 +1,11 @@
 /**
- * 搜寻页面中通过img加载的svg图片，适配为svg symbol加载方式和老IE fallback
- * 1.适配前：
- * <img src="/assets/images/icon-test.svg">
- * 2.适配后：
+ * 收集页面中的svg图片，替换为svg sprite，并兼容老IE fallback
+ * 1.替换前：
+ * <!--# include file="./images/test.svg" -->
+ * 2.替换后：
  * <svg>
- *  <defs><img src="/assets/images/icon-test.png"></defs>
- *  <use xlink:href="/assets/svgs/xxx.svg#icon-test"></use>
+ *  <defs><!--[if lte IE 8]><img src="/assets/images/test.png"><![endif]--></defs>
+ *  <use xlink:href="#test"></use>
  * </svg>
  * @author luoying
  */
@@ -19,39 +19,56 @@ const gutil = require('gulp-util');
 const File = gutil.File;
 const getMatchs = require('@tools/matchs');
 
-// 搜索img加载的svg图片
-const REG_SVG = /<img.*\s+src=["|'](.+\.svg)["|'][^>]*>/gi;
-// 匹配className属性
-const REG_CLASSNAME = /class=["|']([^"']+)["|']/i;
+// 搜索svg图片
+const REG_SVG = /<!\-\-\#\s*include\s+(file|virtual)=["|'](.+)["|']\s*\-\->/gi;
 
-const collect = (html) => {
+const collect = (html, options) => {
+  let res = [];
   let matchs = getMatchs(html, REG_SVG);
-  return matchs.map(match => match[1]);
+
+  matchs.forEach(m => {
+    let url = m[2];
+    let ext = path.extname(url);
+    url = m[1] === 'virtual' ? path.join(options.root, url) : path.resolve(options.base, url);
+
+    if (ext === '.svg') {
+      res.push({
+        parent: options.path,
+        path: url,
+        include: m[0]
+      });
+      return;
+    }
+
+    let content = fs.readFileSync(url, 'utf8');
+    let next = collect(content, {
+      path: url,
+      base: path.dirname(url),
+      root: options.root
+    });
+    res.push.apply(res, next);
+  });
+
+  return res;
 };
 
-const getSVGXML = (svg, fallback, attrs) => (
-  `<svg role="img" class="${attrs.className} ${attrs.id}">
-  <defs><!--[if lte IE 8]><img class="${attrs.className} ${attrs.id}" src="${fallback}" _nowebp><![endif]--></defs>
-  <use xlink:href="${svg}#${attrs.id}"></use>
+const getSVGXML = (id, fallback) => (
+  `<svg role="img" class="${id}">
+  <defs><!--[if lte IE 8]><img class="${id}" src="${fallback}" _nowebp><![endif]--></defs>
+  <use xlink:href="#${id}"></use>
 </svg>`);
 
 const replace = (html, options) => {
-  let matchs = getMatchs(html, REG_SVG);
-  matchs.forEach(match => {
-    let img = match[0];
-    let svg = match[1];
+  let svg = options.svg;
+  let dirname = path.dirname(svg);
+  let basename = path.basename(svg, '.svg');
+  let id = options.id || basename;
+  id = typeof id === 'function' ? id(dirname, basename) : id;
 
-    let basename = path.basename(svg, '.svg');
-    let id = options.id || basename;
-    let fallback = svg.replace('.svg', options.fallbackExt);
-    let classNameMatch = img.match(REG_CLASSNAME);
-    let className = classNameMatch ? classNameMatch[1] : '';
+  let fallback = svg.replace('.svg', options.fallbackExt);
+  let xml = getSVGXML(id, fallback);
+  html = html.replace(options.include, xml);
 
-    html = html.replace(img, getSVGXML(options.svg, fallback, {
-      id: typeof id === 'function' ? id(path.dirname(svg), basename) : id,
-      className: className
-    }));
-  });
   return html;
 };
 
@@ -59,14 +76,19 @@ module.exports.collect = () => {
   return through2.obj(function(file, enc, cb) {
     if (file.isNull()) return cb(null, file);
 
-    let dirname = path.dirname(file.path);
-    let svgs = collect(file.contents.toString());
+    let base = file.base;
+    let html = file.contents.toString();
+    let svgs = collect(html, {
+      path: file.path,
+      base: base,
+      root: base
+    });
 
     for (let svg of svgs) {
-      let pathname = dirname + svg;
       let file = new File({
-        path: pathname,
-        contents: fs.readFileSync(pathname)
+        base: base,
+        path: svg.path,
+        contents: fs.readFileSync(svg.path)
       });
       this.push(file);
     }
@@ -82,19 +104,55 @@ module.exports.replace = (options) => {
     fallbackExt: '.png'
   }, options || {});
 
-  return through2.obj((file, enc, cb) => {
+  return through2.obj(function(file, enc, cb) {
     if (file.isNull()) return cb(null, file);
 
-    let page = path.basename(file.path, '.html');
+    let base = file.base
     let html = file.contents.toString();
 
-    html = replace(html, {
-      svg: path.join(options.dirname, `${page}.svg`),
-      id: options.id,
-      fallbackExt: options.fallbackExt
+    let svgs = collect(html, {
+      path: file.path,
+      base: base,
+      root: base
     });
 
+    let parents = {};
+    for (let svg of svgs) {
+      let parent = svg.parent;
+      if (!parents[parent]) parents[parent] = [];
+      parents[parent].push({
+        path: svg.path,
+        include: svg.include
+      });
+    }
+
+    for (let parent in parents) {
+      let svgs = parents[parent];
+      let content = fs.readFileSync(parent, 'utf8');
+
+      for (let svg of svgs) {
+        content = replace(content, {
+          svg: svg.path.replace(base, '/'),
+          include: svg.include,
+          id: options.id,
+          fallbackExt: options.fallbackExt
+        });
+      }
+
+      let file = new File({
+        base: base,
+        path: parent,
+        contents: new Buffer(content)
+      });
+      this.push(file);
+    }
+
+    let page = path.basename(file.path, '.html');
+    let sprite = `${options.dirname}/${page}.svg`;
+
+    html = html.replace(/<body>/, `<body data-svg-src="${sprite}">`);
     file.contents = new Buffer(html);
+
     cb(null, file);
   });
 }
