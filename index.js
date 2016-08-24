@@ -162,11 +162,14 @@ module.exports.replace = (options) => {
       this.push(file);
     }
 
-    let page = path.basename(file.path, '.html');
-    let sprite = `${options.dirname}/${page}.svg`;
+    // 无svg图标，不用植入svg sprite地址
+    if (svgs.length) {
+      let page = path.basename(file.path, '.html');
+      let sprite = `${options.dirname}/${page}.svg`;
 
-    html = html.replace(/<body>/, `<body data-svg-src="${sprite}">`);
-    file.contents = new Buffer(html);
+      html = html.replace(/(<body)/, `$1 data-svg-src="${sprite}"`);
+      file.contents = new Buffer(html);
+    }
 
     cb(null, file);
   });
