@@ -52,6 +52,19 @@ const collect = (html, options) => {
   return res;
 };
 
+// 去重，重复图标只需要存入一次即可
+const unique = (svgs) => {
+  let map = {};
+  let uniqArr = [];
+  for (let svg of svgs) {
+    if (!map[svg.path]) {
+      map[svg.path] = 1;
+      uniqArr.push(svg);
+    }
+  }
+  return uniqArr;
+};
+
 const getSVGXML = (id, fallback) => (
   `<svg role="img" class="${id}">
   <defs><!--[if lte IE 8]><img class="${id}" src="${fallback}" _nowebp><![endif]--></defs>
@@ -78,11 +91,13 @@ module.exports.collect = () => {
 
     let base = file.base;
     let html = file.contents.toString();
-    let svgs = collect(html, {
+
+    // 收集svg元素，并去重
+    let svgs = unique(collect(html, {
       path: file.path,
       base: base,
       root: base
-    });
+    }));
 
     for (let svg of svgs) {
       let file = new File({

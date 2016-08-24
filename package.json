@@ -1,6 +1,6 @@
 {
   "name": "@tools/gulp-svg-collector",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "description": "收集页面中的svg图片，替换为svg sprite，并兼容老IE fallback",
   "contributors": [
     "Luoying <luoying@fxiaoke.com>"
