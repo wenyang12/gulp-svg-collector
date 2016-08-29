@@ -20,7 +20,7 @@ const File = gutil.File;
 const getMatchs = require('@tools/matchs');
 
 // 搜索svg图片
-const REG_SVG = /<!\-\-\#\s*include\s+(file|virtual)=["|'](.+)["|']\s*\-\->/gi;
+const REG_SVG = /<!\-\-#\s+include\s+(file|virtual)=["|']?([^"|']+)["|']?\s*\-\->/gi;
 
 const collect = (html, options) => {
   let res = [];
