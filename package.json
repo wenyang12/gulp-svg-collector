@@ -25,7 +25,7 @@
   "author": "luoying",
   "license": "ISC",
   "dependencies": {
-    "@tools/matchs": "^1.0.0",
+    "@tools/matchs": "^1.0.1",
     "gulp-util": "^3.0.7",
     "through2": "^2.0.1"
   },
