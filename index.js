@@ -78,7 +78,7 @@ const replace = (html, options) => {
   let id = options.id || basename;
   id = typeof id === 'function' ? id(dirname, basename) : id;
 
-  let fallback = svg.replace('.svg', options.fallbackExt);
+  let fallback = svg.replace('.svg', options.fallbackExt).replace(/\\/g, '/');
   let xml = getSVGXML(id, fallback);
   html = html.replace(options.include, xml);
 
@@ -147,7 +147,7 @@ module.exports.replace = (options) => {
 
       for (let svg of svgs) {
         content = replace(content, {
-          svg: svg.path.replace(base, '/'),
+          svg: svg.path.replace(base, path.sep),
           include: svg.include,
           id: options.id,
           fallbackExt: options.fallbackExt
